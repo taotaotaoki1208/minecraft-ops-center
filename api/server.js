@@ -27,7 +27,7 @@ app.use(
     maxAge: 86400,
   })
 );
-app.options("*", cors());
+app.options(/.*/, cors());
 app.use(express.json());
 const crypto = require("crypto");
 const dgram = require("dgram");
