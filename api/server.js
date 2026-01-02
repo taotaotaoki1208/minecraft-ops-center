@@ -3,31 +3,37 @@ require("dotenv").config();
 console.log("[ENV] MASTER KEY loaded?", !!process.env.OPSCENTER_MASTER_KEY_B64);
 const express = require("express");
 const cors = require("cors");
+const express = require("express");
+const cors = require("cors");
+
+const app = express();
+
 const allowlist = new Set([
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-  "https://taotaotaaki1208.github.io",
+  "https://taotaotaoki1208.github.io",
 ]);
 
-const admin = require("firebase-admin");
-const { upsertUserPteroKey, getUserPteroKey, getUserPteroMeta } = require("./userPteroStore");
-const { getState, trySetMaintenance } = require("./maintenanceState");
-const app = express();
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      // 允許沒有 Origin 的請求（例如 health check / curl）
-      if (!origin) return cb(null, true);
-      if (allowlist.has(origin)) return cb(null, true);
-      return cb(new Error("CORS blocked: " + origin));
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: false,
-    maxAge: 86400,
-  })
-);
-app.options(/.*/, cors());
+const corsOptions = {
+  origin: (origin, cb) => {
+    // 允許沒有 Origin 的請求（健康檢查 / curl）
+    if (!origin) return cb(null, true);
+    if (allowlist.has(origin)) return cb(null, true);
+    return cb(new Error("CORS blocked: " + origin));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+  maxAge: 86400,
+};
+
+// ✅ 1) CORS 一定要在 routes 前面
+app.use(cors(corsOptions));
+
+// ✅ 2) preflight 用同一套 options（重點：不要用 cors() 空白版）
+app.options(/.*/, cors(corsOptions));
+
+// ✅ 3) json 解析放在 CORS 後面也可以（但放前面也行）
 app.use(express.json());
 const crypto = require("crypto");
 const dgram = require("dgram");
