@@ -3,20 +3,21 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const admin = require("firebase-admin"); // ✅ 一定要有
 
 const app = express();
 
 // ✅ only allow these two origins
-const ALLOWLIST = new Set([
+const allowlist = new Set([
   "https://taotaotaoki1208.github.io",
   "http://localhost:3000",
 ]);
 
 const corsOptions = {
   origin: (origin, cb) => {
-    // allow non-browser requests (Render health check / curl)
+    // allow non-browser requests (Render health checks / curl)
     if (!origin) return cb(null, true);
-    if (ALLOWLIST.has(origin)) return cb(null, true);
+    if (allowlist.has(origin)) return cb(null, true);
     return cb(new Error("CORS blocked: " + origin));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -25,13 +26,9 @@ const corsOptions = {
   maxAge: 86400,
 };
 
-// ✅ CORS must be before routes
+// ✅ CORS before routes
 app.use(cors(corsOptions));
-
-// ✅ preflight (OPTIONS) must pass using the same corsOptions
 app.options(/.*/, cors(corsOptions));
-
-// ✅ body parser after CORS (this order is safe & common)
 app.use(express.json());
 const crypto = require("crypto");
 const dgram = require("dgram");
