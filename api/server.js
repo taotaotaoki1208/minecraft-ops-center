@@ -8,6 +8,11 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "https://taotaoaki1208.github.io",
 ];
+
+const admin = require("firebase-admin");
+const { upsertUserPteroKey, getUserPteroKey, getUserPteroMeta } = require("./userPteroStore");
+const { getState, trySetMaintenance } = require("./maintenanceState");
+const app = express();
 app.use(cors({
   origin: function (origin, cb) {
     // 允許無 origin 的請求（像 health check）
@@ -17,10 +22,6 @@ app.use(cors({
   },
   credentials: true,
 }));
-const admin = require("firebase-admin");
-const { upsertUserPteroKey, getUserPteroKey, getUserPteroMeta } = require("./userPteroStore");
-const { getState, trySetMaintenance } = require("./maintenanceState");
-const app = express();
 app.use(express.json());
 const crypto = require("crypto");
 const dgram = require("dgram");
