@@ -308,6 +308,55 @@ function decryptText(payload) {
 
   return decrypted;
 }
+// === Maintenance state (Firestore) ===
+const STATE_COL = "opscenter_state";
+const MAINT_DOC = "maintenance";
+
+async function getState(admin) {
+  const ref = admin.firestore().collection(STATE_COL).doc(MAINT_DOC);
+  const snap = await ref.get();
+  const data = snap.exists ? snap.data() : null;
+
+  return {
+    mode: data?.mode || "NORMAL",            // "NORMAL" | "MAINTENANCE"
+    operator: data?.operator || null,
+    updatedAt: data?.updatedAt || null,
+  };
+}
+
+// 原子化切換狀態：避免重複點造成流程重入
+async function trySetMaintenance(admin, { toMode, operator }) {
+  const ref = admin.firestore().collection(STATE_COL).doc(MAINT_DOC);
+
+  try {
+    const result = await admin.firestore().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const current = snap.exists ? snap.data() : {};
+      const curMode = current?.mode || "NORMAL";
+
+      if (curMode === toMode) {
+        return { ok: false, reason: "ALREADY", current: curMode };
+      }
+
+      tx.set(
+        ref,
+        {
+          mode: toMode,
+          operator: operator || "unknown",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return { ok: true, from: curMode, to: toMode };
+    });
+
+    return result;
+  } catch (e) {
+    console.error("[MAINT STATE TX ERROR]", e);
+    return { ok: false, reason: "TX_FAILED" };
+  }
+}
 // --- Routes ---
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, service: "minecraft-ops-center-api" });
