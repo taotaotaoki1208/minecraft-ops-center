@@ -1,0 +1,5 @@
+{
+  "name": "Minecraft Ops Center",
+  "description": "A comprehensive dashboard for Minecraft server maintenance, Pterodactyl orchestration, and Discord integration simulation.",
+  "requestFramePermissions": []
+}
