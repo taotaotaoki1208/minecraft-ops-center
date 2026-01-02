@@ -1,0 +1,8 @@
+/* 基本先讓它不報錯、畫面有預設字體 */
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+}
+body {
+  margin: 0;
+}

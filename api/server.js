@@ -3,10 +3,25 @@ require("dotenv").config();
 console.log("[ENV] MASTER KEY loaded?", !!process.env.OPSCENTER_MASTER_KEY_B64);
 const express = require("express");
 const cors = require("cors");
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://taotaoaki1208.github.io",
+];
+app.use(cors({
+  origin: function (origin, cb) {
+    // 允許無 origin 的請求（像 health check）
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error("Not allowed by CORS: " + origin));
+  },
+  credentials: true,
+}));
 const admin = require("firebase-admin");
 const { upsertUserPteroKey, getUserPteroKey, getUserPteroMeta } = require("./userPteroStore");
 const { getState, trySetMaintenance } = require("./maintenanceState");
 const app = express();
+app.use(express.json());
 const crypto = require("crypto");
 const dgram = require("dgram");
 
@@ -55,41 +70,22 @@ async function getUserPteroToken(admin, uid) {
   return decryptText(enc);
 }
 
-function encryptText(plainText) {
-  const key = getMasterKey32();
-  const iv = crypto.randomBytes(12); // GCM 建議 12 bytes
-  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-
-  const enc = Buffer.concat([cipher.update(plainText, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
-  // 你存進 DB 的格式：iv.tag.ciphertext（全部 base64）
-  return [
-    iv.toString("base64"),
-    tag.toString("base64"),
-    enc.toString("base64"),
-  ].join(".");
+function loadFirebaseServiceAccount() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_B64) {
+    const jsonText = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_B64, "base64").toString("utf-8");
+    return JSON.parse(jsonText);
+  }
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  }
+  throw new Error("缺少 FIREBASE_SERVICE_ACCOUNT_B64（推薦）或 FIREBASE_SERVICE_ACCOUNT，請在 api/.env 設定。");
 }
-app.use((req, res, next) => {
-  console.log("[REQ]", req.method, req.url);
-  next();
-});
-app.use(express.json());
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true,
-  })
-);
+
+const serviceAccount = loadFirebaseServiceAccount();
 
 // --- Firebase Admin init ---
-const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
-if (!serviceAccountPath) {
-  throw new Error("缺少 FIREBASE_SERVICE_ACCOUNT，請在 api/.env 設定。");
-}
-
 admin.initializeApp({
-  credential: admin.credential.cert(require(serviceAccountPath)),
+  credential: admin.credential.cert(serviceAccount),
 });
 
 // --- Auth middleware：驗證 Firebase ID Token ---
@@ -130,9 +126,18 @@ async function requirePteroKey(req, res, next) {
     req.pteroToken = token;
     next();
   } catch (e) {
-    console.error("[PTERO KEY LOAD ERROR]", e);
-    return res.status(500).json({ ok: false, error: "讀取使用者 Pterodactyl Key 失敗" });
+  console.error("[PTERO KEY LOAD ERROR]", e);
+
+  if (String(e?.message || "").includes("unable to authenticate data")) {
+    return res.status(412).json({
+      ok: false,
+      error: "已綁定的 Pterodactyl Key 無法解密（可能更換了 MASTER KEY），請重新綁定",
+      code: "PTERO_KEY_NEEDS_REBIND",
+    });
   }
+
+  return res.status(500).json({ ok: false, error: "讀取使用者 Pterodactyl Key 失敗" });
+}
 }
 // ===== Minecraft Query (UDP) - no extra libs =====
 function mcQuery(host, port, timeoutMs = 1200) {

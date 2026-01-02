@@ -36,6 +36,7 @@ function parseJsonSafe(text: string) {
 }
 
 export async function apiGet(path: string) {
+  const url = `${API_BASE}${path}`;
   const res = await fetch(API_BASE + path, { headers: await authHeaders() });
   const text = await res.text();
   const data: any = parseJsonSafe(text);
