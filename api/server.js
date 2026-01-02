@@ -1,24 +1,22 @@
 const { getServerResources, sendCommand, getAccount, setPower } = require("./ptero");
 require("dotenv").config();
-console.log("[ENV] MASTER KEY loaded?", !!process.env.OPSCENTER_MASTER_KEY_B64);
-const express = require("express");
-const cors = require("cors");
+
 const express = require("express");
 const cors = require("cors");
 
 const app = express();
 
-const allowlist = new Set([
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
+// ✅ only allow these two origins
+const ALLOWLIST = new Set([
   "https://taotaotaoki1208.github.io",
+  "http://localhost:3000",
 ]);
 
 const corsOptions = {
   origin: (origin, cb) => {
-    // 允許沒有 Origin 的請求（健康檢查 / curl）
+    // allow non-browser requests (Render health check / curl)
     if (!origin) return cb(null, true);
-    if (allowlist.has(origin)) return cb(null, true);
+    if (ALLOWLIST.has(origin)) return cb(null, true);
     return cb(new Error("CORS blocked: " + origin));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -27,13 +25,13 @@ const corsOptions = {
   maxAge: 86400,
 };
 
-// ✅ 1) CORS 一定要在 routes 前面
+// ✅ CORS must be before routes
 app.use(cors(corsOptions));
 
-// ✅ 2) preflight 用同一套 options（重點：不要用 cors() 空白版）
+// ✅ preflight (OPTIONS) must pass using the same corsOptions
 app.options(/.*/, cors(corsOptions));
 
-// ✅ 3) json 解析放在 CORS 後面也可以（但放前面也行）
+// ✅ body parser after CORS (this order is safe & common)
 app.use(express.json());
 const crypto = require("crypto");
 const dgram = require("dgram");
