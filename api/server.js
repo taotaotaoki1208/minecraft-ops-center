@@ -236,7 +236,43 @@ function mcQuery(host, port, timeoutMs = 1200) {
     });
   });
 }
+// Firestore collection (統一用一個)
+const USERS_COL = "opscenter_users";
 
+async function getUserPteroMeta(admin, uid) {
+  const snap = await admin.firestore().collection(USERS_COL).doc(uid).get();
+  const data = snap.exists ? snap.data() : null;
+
+  const enc = data?.pteroKey?.encrypted || null;
+  const updatedAt = data?.pteroKey?.updatedAt || null;
+  const last4 = data?.pteroKey?.last4 || null;
+
+  return {
+    bound: !!enc,
+    updatedAt,
+    last4,
+  };
+}
+
+async function upsertUserPteroKey(admin, uid, token) {
+  const encrypted = encryptText(token);
+  const last4 = token.slice(-4);
+  const now = admin.firestore.FieldValue.serverTimestamp();
+
+  await admin.firestore().collection(USERS_COL).doc(uid).set(
+    {
+      pteroKey: {
+        encrypted,
+        last4,
+        updatedAt: now,
+      },
+    },
+    { merge: true }
+  );
+
+  // 回傳 meta（不回明文）
+  return { bound: true, last4 };
+}
 // --- Routes ---
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, service: "minecraft-ops-center-api" });
@@ -248,8 +284,13 @@ app.get("/api/me", requireAuth, (req, res) => {
 });
 // 查詢：是否已綁定（不回傳明文 key）
 app.get("/api/ptero-key", requireAuth, async (req, res) => {
-  const meta = await getUserPteroMeta(admin, req.user.uid);
-  res.json({ ok: true, ...meta });
+  try {
+    const meta = await getUserPteroMeta(admin, req.user.uid);
+    return res.json({ ok: true, ...meta });
+  } catch (e) {
+    console.error("[PTERO KEY GET ERROR]", e);
+    return res.status(500).json({ ok: false, error: e?.message || "讀取 ptero key 狀態失敗" });
+  }
 });
 // 綁定/更新 key（只收一次，不回傳明文）
 app.put("/api/ptero-key", requireAuth, async (req, res) => {
