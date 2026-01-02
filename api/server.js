@@ -273,6 +273,42 @@ async function upsertUserPteroKey(admin, uid, token) {
   // 回傳 meta（不回明文）
   return { bound: true, last4 };
 }
+const crypto = require("crypto");
+
+// AES-256-GCM
+const ENC_ALGO = "aes-256-gcm";
+const ENC_KEY = Buffer.from(process.env.PTERO_KEY_SECRET, "hex"); // 32 bytes
+const IV_LENGTH = 12;
+
+function encryptText(plain) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ENC_ALGO, ENC_KEY, iv);
+
+  let encrypted = cipher.update(plain, "utf8", "base64");
+  encrypted += cipher.final("base64");
+
+  const authTag = cipher.getAuthTag();
+
+  return [
+    iv.toString("base64"),
+    authTag.toString("base64"),
+    encrypted,
+  ].join(".");
+}
+
+function decryptText(payload) {
+  const [ivB64, tagB64, dataB64] = payload.split(".");
+  const iv = Buffer.from(ivB64, "base64");
+  const authTag = Buffer.from(tagB64, "base64");
+
+  const decipher = crypto.createDecipheriv(ENC_ALGO, ENC_KEY, iv);
+  decipher.setAuthTag(authTag);
+
+  let decrypted = decipher.update(dataB64, "base64", "utf8");
+  decrypted += decipher.final("utf8");
+
+  return decrypted;
+}
 // --- Routes ---
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, service: "minecraft-ops-center-api" });
