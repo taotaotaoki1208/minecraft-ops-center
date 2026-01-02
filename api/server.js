@@ -273,7 +273,6 @@ async function upsertUserPteroKey(admin, uid, token) {
   // 回傳 meta（不回明文）
   return { bound: true, last4 };
 }
-const crypto = require("crypto");
 
 // AES-256-GCM
 const ENC_ALGO = "aes-256-gcm";
