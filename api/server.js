@@ -72,18 +72,22 @@ async function getUserPteroToken(admin, uid) {
 
 function loadFirebaseServiceAccount() {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_B64) {
-    const jsonText = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_B64, "base64").toString("utf-8");
+    const jsonText = Buffer.from(
+      process.env.FIREBASE_SERVICE_ACCOUNT_B64,
+      "base64"
+    ).toString("utf-8");
     return JSON.parse(jsonText);
   }
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
   }
-  throw new Error("缺少 FIREBASE_SERVICE_ACCOUNT_B64（推薦）或 FIREBASE_SERVICE_ACCOUNT，請在 api/.env 設定。");
+  throw new Error(
+    "缺少 FIREBASE_SERVICE_ACCOUNT_B64（Render 必填）"
+  );
 }
 
 const serviceAccount = loadFirebaseServiceAccount();
 
-// --- Firebase Admin init ---
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
