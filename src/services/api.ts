@@ -1,6 +1,8 @@
 import { auth } from "./firebase";
 // ✅ Production: set VITE_API_BASE to your backend URL (e.g. https://api.example.com)
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = import.meta.env.DEV
+  ? "http://localhost:3001"
+  : "https://minecraft-ops-center.onrender.com";
 
 
 /**
