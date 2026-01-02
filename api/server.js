@@ -127,7 +127,7 @@ async function requireAuth(req, res, next) {
 }
 async function requirePteroKey(req, res, next) {
   try {
-    const token = await getUserPteroKey(admin, req.user.uid);
+    const token = await getUserPteroToken(admin, req.user.uid);
     if (!token) {
       return res.status(412).json({
         ok: false,
