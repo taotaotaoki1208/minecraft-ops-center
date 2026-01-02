@@ -3,25 +3,31 @@ require("dotenv").config();
 console.log("[ENV] MASTER KEY loaded?", !!process.env.OPSCENTER_MASTER_KEY_B64);
 const express = require("express");
 const cors = require("cors");
-const allowedOrigins = [
+const allowlist = new Set([
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-  "https://taotaoaki1208.github.io",
-];
+  "https://taotaotaaki1208.github.io",
+]);
 
 const admin = require("firebase-admin");
 const { upsertUserPteroKey, getUserPteroKey, getUserPteroMeta } = require("./userPteroStore");
 const { getState, trySetMaintenance } = require("./maintenanceState");
 const app = express();
-app.use(cors({
-  origin: function (origin, cb) {
-    // 允許無 origin 的請求（像 health check）
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error("Not allowed by CORS: " + origin));
-  },
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // 允許沒有 Origin 的請求（例如 health check / curl）
+      if (!origin) return cb(null, true);
+      if (allowlist.has(origin)) return cb(null, true);
+      return cb(new Error("CORS blocked: " + origin));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false,
+    maxAge: 86400,
+  })
+);
+app.options("*", cors());
 app.use(express.json());
 const crypto = require("crypto");
 const dgram = require("dgram");
