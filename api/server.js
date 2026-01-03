@@ -248,10 +248,11 @@ async function getUserPteroMeta(admin, uid) {
   const last4 = data?.pteroKey?.last4 || null;
 
   return {
-    bound: !!enc,
-    updatedAt,
-    last4,
-  };
+  configured: !!enc,
+  bound: !!enc,
+  updatedAt,
+  last4,
+};
 }
 
 async function upsertUserPteroKey(admin, uid, token) {
@@ -271,7 +272,7 @@ async function upsertUserPteroKey(admin, uid, token) {
   );
 
   // 回傳 meta（不回明文）
-  return { bound: true, last4 };
+  return { configured: true, bound: true, last4 };
 }
 
 // AES-256-GCM
